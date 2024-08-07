@@ -87,7 +87,15 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 			SET COMPLETION_DATE = ?
 			WHERE
 					LISTENER_ID = ?
+					AND COMPLETION_DATE IS NULL
 					AND SERIALIZED_EVENT = ?
+			""";
+
+	private static final String SQL_STATEMENT_UPDATE_BY_ID = """
+			UPDATE %s
+			SET COMPLETION_DATE = ?
+			WHERE
+					ID = ?
 			""";
 
 	private static final String SQL_STATEMENT_FIND_BY_EVENT_AND_LISTENER_ID = """
@@ -133,6 +141,7 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 			sqlStatementFindUncompleted,
 			sqlStatementFindUncompletedBefore,
 			sqlStatementUpdateByEventAndListenerId,
+			sqlStatementUpdateById,
 			sqlStatementFindByEventAndListenerId,
 			sqlStatementDelete,
 			sqlStatementDeleteUncompleted,
@@ -167,6 +176,7 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 		this.sqlStatementFindUncompleted = SQL_STATEMENT_FIND_UNCOMPLETED.formatted(table);
 		this.sqlStatementFindUncompletedBefore = SQL_STATEMENT_FIND_UNCOMPLETED_BEFORE.formatted(table);
 		this.sqlStatementUpdateByEventAndListenerId = SQL_STATEMENT_UPDATE_BY_EVENT_AND_LISTENER_ID.formatted(table);
+		this.sqlStatementUpdateById = SQL_STATEMENT_UPDATE_BY_ID.formatted(table);
 		this.sqlStatementFindByEventAndListenerId = SQL_STATEMENT_FIND_BY_EVENT_AND_LISTENER_ID.formatted(table);
 		this.sqlStatementDelete = SQL_STATEMENT_DELETE.formatted(table);
 		this.sqlStatementDeleteUncompleted = SQL_STATEMENT_DELETE_UNCOMPLETED.formatted(table);
@@ -215,6 +225,16 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 				Timestamp.from(completionDate), //
 				identifier.getValue(), //
 				serializer.serialize(event));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.modulith.events.core.EventPublicationRepository#markCompleted(java.util.UUID, java.time.Instant)
+	 */
+	@Override
+	@Transactional
+	public void markCompleted(UUID identifier, Instant completionDate) {
+		operations.update(sqlStatementUpdateById, Timestamp.from(completionDate), uuidToDatabase(identifier));
 	}
 
 	/*
