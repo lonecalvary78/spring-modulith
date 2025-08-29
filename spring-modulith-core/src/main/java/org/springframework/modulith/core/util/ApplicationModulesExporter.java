@@ -135,15 +135,38 @@ public class ApplicationModulesExporter {
 	private static Map<String, Object> toInfo(ApplicationModule module, ApplicationModules modules, Details details) {
 
 		Map<String, Object> json = new LinkedHashMap<>();
+		var sharedModules = modules.getSharedModules();
 
 		json.put("displayName", module.getDisplayName());
 		json.put("basePackage", module.getBasePackage().getName());
+
+		modules.getParentOf(module).ifPresent(it -> {
+			json.put("parent", it.getIdentifier().toString());
+		});
+
+		json.put("nested", modules.getNestedModules(module).stream()
+				.map(ApplicationModule::getIdentifier)
+				.map(Object::toString)
+				.toList());
+
+		json.put("type", module.isOpen() ? "open" : "closed");
+		json.put("shared", sharedModules.contains(module));
 
 		if (details.equals(Details.FULL)) {
 			json.put("namedInterfaces", toNamedInterfaces(module.getNamedInterfaces()));
 			json.put("initializers", module.getSpringBeans(ApplicationModuleInitializer.class).stream()
 					.map(SpringBean::getType)
 					.map(JavaClass::getName)
+					.toList());
+		}
+
+		var allowed = module.getAllowedDependencies(modules);
+
+		if (!allowed.isEmpty()) {
+
+			json.put("allowedDependencies", allowed.stream()
+					.filter(it -> !sharedModules.contains(it.getTargetModule()))
+					.map(Object::toString)
 					.toList());
 		}
 

@@ -146,9 +146,12 @@ public class ApplicationModules implements Iterable<ApplicationModule> {
 		this.modules = sources.stream() //
 				.map(it -> {
 
-					return new ApplicationModule(it,
-							JavaPackages.onlySubPackagesOf(it.getModuleBasePackage(),
-									sources.stream().map(ApplicationModuleSource::getModuleBasePackage).toList())); //
+					var exclusions = sources.stream()
+							.map(ApplicationModuleSource::getModuleBasePackage)
+							.toList();
+
+					return new ApplicationModule(it, new JavaPackages(exclusions));
+
 				})
 				.collect(toMap(ApplicationModule::getIdentifier, Function.identity()));
 
@@ -328,8 +331,7 @@ public class ApplicationModules implements Iterable<ApplicationModule> {
 
 		Assert.notNull(type, "Type must not be null!");
 
-		return modules.values().stream() //
-				.anyMatch(module -> module.contains(type));
+		return modules.values().stream().anyMatch(module -> module.contains(type));
 	}
 
 	/**
@@ -499,7 +501,7 @@ public class ApplicationModules implements Iterable<ApplicationModule> {
 				.flatMap(it -> it.getDetails().stream())
 				.collect(toViolations());
 
-		var dependencyViolations = Stream.concat(rootModules.get().stream(), modules.values().stream()) //
+		var dependencyViolations = allModules() //
 				.map(it -> it.detectDependencies(this)) //
 				.reduce(NONE, Violations::and);
 
@@ -579,16 +581,24 @@ public class ApplicationModules implements Iterable<ApplicationModule> {
 		return getParentOf(module).isPresent();
 	}
 
+	/**
+	 * Returns all nested modules of the given {@link ApplicationModule}.
+	 *
+	 * @param module must not be {@literal null}.
+	 * @return will never be {@literal null}.
+	 * @since 1.4.2
+	 */
+	public Collection<ApplicationModule> getNestedModules(ApplicationModule module) {
+		return module.getNestedModules(this);
+	}
+
 	/*
 	 * (non-Javadoc)
 	 * @see java.lang.Iterable#iterator()
 	 */
 	@Override
 	public Iterator<ApplicationModule> iterator() {
-
-		return orderedNames != null
-				? orderedNames.stream().map(this::getRequiredModule).iterator()
-				: modules.values().iterator();
+		return orderedModules().iterator();
 	}
 
 	/*
@@ -661,7 +671,13 @@ public class ApplicationModules implements Iterable<ApplicationModule> {
 	 * @since 1.1
 	 */
 	private Stream<ApplicationModule> allModules() {
-		return Stream.concat(modules.values().stream(), rootModules.get().stream());
+		return Stream.concat(orderedModules(), rootModules.get().stream());
+	}
+
+	private Stream<ApplicationModule> orderedModules() {
+		return orderedNames != null
+				? orderedNames.stream().map(this::getRequiredModule)
+				: modules.values().stream().sorted();
 	}
 
 	/**
@@ -831,6 +847,10 @@ public class ApplicationModules implements Iterable<ApplicationModule> {
 
 		private static boolean visit(ApplicationModule module, ApplicationModules modules, Set<ApplicationModule> visited,
 				Set<ApplicationModule> inProgress, int level, Map<Integer, Set<ApplicationModuleIdentifier>> levelMap) {
+
+			if (module.isRootModule()) {
+				return false;
+			}
 
 			if (inProgress.contains(module)) {
 				return true;

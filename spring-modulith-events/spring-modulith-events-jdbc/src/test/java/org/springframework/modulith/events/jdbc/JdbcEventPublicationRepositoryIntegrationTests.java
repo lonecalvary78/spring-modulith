@@ -44,6 +44,7 @@ import org.springframework.modulith.events.support.CompletionMode;
 import org.springframework.modulith.testapp.TestApplication;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -63,6 +64,7 @@ class JdbcEventPublicationRepositoryIntegrationTests {
 	@Import(TestApplication.class)
 	@Testcontainers(disabledWithoutDocker = true)
 	@ContextConfiguration(classes = JdbcEventPublicationAutoConfiguration.class)
+	@TestPropertySource(properties = "spring.modulith.events.jdbc.use-legacy-structure=true")
 	static abstract class TestBase {
 
 		@Autowired JdbcOperations operations;
@@ -390,7 +392,9 @@ class JdbcEventPublicationRepositoryIntegrationTests {
 			return "EVENT_PUBLICATION";
 		}
 
-		String archiveTable() { return table() + "_ARCHIVE"; }
+		String archiveTable() {
+			return table() + "_ARCHIVE";
+		}
 
 		private TargetEventPublication createPublication(Object event) {
 

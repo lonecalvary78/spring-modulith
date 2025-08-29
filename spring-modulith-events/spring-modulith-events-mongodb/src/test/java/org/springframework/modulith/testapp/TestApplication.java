@@ -16,11 +16,12 @@
 package org.springframework.modulith.testapp;
 
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 
 /**
  * @author Dmitry Belyaev
  * @author Björn Kieling
  */
 @SpringBootApplication
-public class TestApplication {
-}
+@Import(Infrastructure.class)
+public class TestApplication {}

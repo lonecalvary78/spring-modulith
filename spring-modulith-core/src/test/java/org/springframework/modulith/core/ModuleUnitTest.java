@@ -27,7 +27,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.springframework.modulith.core.ApplicationModule.DeclaredDependency;
+import org.springframework.modulith.core.ApplicationModule.AllowedDependency;
 
 import com.acme.withatbean.SampleAggregate;
 import com.acme.withatbean.TestEvents.JMoleculesAnnotated;
@@ -100,9 +100,22 @@ class ModuleUnitTest {
 		var modules = TestUtils.of("example", "example.ninvalid");
 
 		var module = modules.getModuleByName("ni").orElseThrow();
-		var dependency = DeclaredDependency.of("ni :: *", module, modules);
+		var dependency = AllowedDependency.of("ni :: *", module, modules);
 
 		assertThat(dependency.contains(SpiType.class)).isTrue();
 		assertThat(dependency.contains(ApiType.class)).isTrue();
+	}
+
+	@Test // GH-1299
+	void obtainsDependenciesForCyclicArrangement() {
+
+		var modules = TestUtils.of("example.cycle");
+
+		modules.forEach(it -> {
+
+			assertThat(it.getDependencies(modules, DependencyDepth.ALL).uniqueModules())
+					.extracting(ApplicationModule::getIdentifier)
+					.contains(it.getIdentifier());
+		});
 	}
 }

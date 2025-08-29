@@ -24,6 +24,7 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.modulith.PackageInfo;
 import org.springframework.util.Assert;
@@ -57,6 +59,7 @@ public class JavaPackage implements DescribedIterable<JavaClass>, Comparable<Jav
 	private static final String MULTIPLE_TYPES_ANNOTATED_WITH = "Expected maximum of one type in package %s to be annotated with %s, but got %s!";
 	private static final DescribedPredicate<JavaClass> ARE_PACKAGE_INFOS = //
 			has(simpleName(PACKAGE_INFO_NAME)).or(is(metaAnnotatedWith(PackageInfo.class)));
+	private static final Supplier<JavaPackages> NO_SUB_PACKAGES = SingletonSupplier.of(JavaPackages.NONE);
 
 	private final PackageName name;
 	private final Classes classes;
@@ -74,7 +77,7 @@ public class JavaPackage implements DescribedIterable<JavaClass>, Comparable<Jav
 
 		this(classes.thatResideIn(name, includeSubPackages), name, includeSubPackages
 				? SingletonSupplier.of(() -> detectSubPackages(classes, name))
-				: SingletonSupplier.of(JavaPackages.NONE));
+				: NO_SUB_PACKAGES);
 	}
 
 	/**
@@ -325,10 +328,9 @@ public class JavaPackage implements DescribedIterable<JavaClass>, Comparable<Jav
 	}
 
 	/**
-	 * Returns whether the given reference package is a sub-package of the current one.
+	 * Returns whether the current {@link JavaPackage} is a sub-package of the given reference one.
 	 *
 	 * @param reference must not be {@literal null}.
-	 * @return will never be {@literal null}.
 	 * @since 1.3
 	 */
 	boolean isSubPackageOf(JavaPackage reference) {
@@ -339,13 +341,23 @@ public class JavaPackage implements DescribedIterable<JavaClass>, Comparable<Jav
 	}
 
 	/**
+	 * Returns whether the current {@link JavaPackage} is a parent package of the given reference one.
+	 *
+	 * @param reference must not be {@literal null}.
+	 * @since 1.4.2
+	 */
+	boolean isParentPackageOf(JavaPackage reference) {
+		return reference.isSubPackageOf(this);
+	}
+
+	/**
 	 * Returns all Classes residing in the current package but not in any of the given sub-packages.
 	 *
 	 * @param exclusions must not be {@literal null}.
 	 * @return will never be {@literal null}.
 	 * @since 1.3
 	 */
-	Classes getClasses(Iterable<JavaPackage> exclusions) {
+	Classes getClassesExcept(Iterable<JavaPackage> exclusions) {
 
 		Assert.notNull(exclusions, "Object must not be null!");
 
@@ -397,11 +409,12 @@ public class JavaPackage implements DescribedIterable<JavaClass>, Comparable<Jav
 
 		var isPackageInfo = have(simpleName(PACKAGE_INFO_NAME)).or(are(metaAnnotatedWith(PackageInfo.class)));
 
-		var annotatedTypes = toSingle().classes
+		List<@NonNull A> annotatedTypes = toSingle().classes
 				.that(isPackageInfo.and(are(metaAnnotatedWith(annotationType))))
 				.stream()
 				.map(JavaClass::reflect)
 				.map(it -> AnnotatedElementUtils.findMergedAnnotation(it, annotationType))
+				.filter(it -> it != null)
 				.toList();
 
 		if (annotatedTypes.size() > 1) {
@@ -541,5 +554,47 @@ public class JavaPackage implements DescribedIterable<JavaClass>, Comparable<Jav
 		}
 
 		return new JavaPackages(result.values());
+	}
+
+	/**
+	 * Returns all sub-packages of the current one, except the given ones.
+	 *
+	 * @param packages will never be {@literal null}.
+	 * @return will never be {@literal null}.
+	 */
+	JavaPackages onlySubPackagesExcept(Collection<JavaPackage> packages) {
+
+		Assert.notNull(packages, "Packages must not be null!");
+
+		var subPackages = packages.stream()
+				.filter(it -> it.isSubPackageOf(this))
+				.toList();
+
+		return subPackages.isEmpty() ? JavaPackages.NONE : new JavaPackages(subPackages).flatten();
+	}
+
+	/**
+	 * Returns a new JavaPac
+	 *
+	 * @param exclusions all {@link JavaPackages} to exclude.
+	 * @return will never be {@literal null}.
+	 */
+	JavaPackage without(JavaPackages exclusions) {
+
+		if (subPackages == NO_SUB_PACKAGES) {
+			return this;
+		}
+
+		var toBeExcluded = exclusions.stream()
+				.filter(it -> it.isSubPackageOf(this))
+				.toList();
+
+		if (toBeExcluded.isEmpty()) {
+			return this;
+		}
+
+		var filtered = getClassesExcept(toBeExcluded);
+
+		return new JavaPackage(filtered, name, true);
 	}
 }

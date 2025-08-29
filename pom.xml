@@ -35,21 +35,22 @@
 
 	<properties>
 
-		<archunit.version>1.4.0</archunit.version>
+		<aptk.version>0.30.3</aptk.version>
+		<archunit.version>1.4.1</archunit.version>
 		<artifactory-maven-plugin.version>3.6.2</artifactory-maven-plugin.version>
+		<cute.version>1.8.2</cute.version>
 		<errorprone.version>2.36.0</errorprone.version>
-		<flapdoodle-mongodb.version>4.16.1</flapdoodle-mongodb.version>
-		<jgit.version>7.0.0.202409031743-r</jgit.version>
-		<jgrapht.version>1.5.2</jgrapht.version>
-		<jmolecules-bom.version>2023.3.1</jmolecules-bom.version>
+		<flapdoodle-mongodb.version>4.20.0</flapdoodle-mongodb.version>
+		<jgit.version>7.3.0.202506031305-r</jgit.version>
+		<jmolecules-bom.version>2023.3.2</jmolecules-bom.version>
 		<nullaway.version>0.12.7</nullaway.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<spring-boot.version>4.0.0-SNAPSHOT</spring-boot.version>
-		<spring-framework.version>7.0.0-M5</spring-framework.version> <!-- For Javadoc links only -->
-		<testcontainers.version>1.17.6</testcontainers.version>
-		<structurizr.version>3.1.0</structurizr.version>
-		<micrometer-tracing.version>1.5.0</micrometer-tracing.version>
+		<spring-boot.version>4.0.0-M2</spring-boot.version>
+		<spring-framework.version>7.0.0-M8</spring-framework.version> <!-- For Javadoc links only -->
+		<testcontainers.version>1.21.3</testcontainers.version>
+		<structurizr.version>4.1.0</structurizr.version>
+		<micrometer-tracing.version>1.6.0-M1</micrometer-tracing.version>
 
 	</properties>
 
@@ -263,15 +264,12 @@ limitations under the License.
 						</configuration>
 					</plugin>
 					<plugin>
-						<groupId>org.sonatype.plugins</groupId>
-						<artifactId>nexus-staging-maven-plugin</artifactId>
-						<version>1.7.0</version>
-						<extensions>true</extensions>
+						<groupId>org.sonatype.central</groupId>
+						<artifactId>central-publishing-maven-plugin</artifactId>
 						<configuration>
-							<serverId>sonatype-new</serverId>
-							<nexusUrl>https://s01.oss.sonatype.org/</nexusUrl>
-							<autoReleaseAfterClose>true</autoReleaseAfterClose>
-							<keepStagingRepositoryOnFailure>true</keepStagingRepositoryOnFailure>
+							<deploymentName>Spring Modulith ${project.version}</deploymentName>
+							<publishingServerId>central-ossrh</publishingServerId>
+							<autoPublish>true</autoPublish>
 						</configuration>
 					</plugin>
 				</plugins>
@@ -509,12 +507,12 @@ limitations under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
-					<version>3.13.0</version>
+					<version>3.14.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-surefire-plugin</artifactId>
-					<version>3.5.1</version>
+					<version>3.5.3</version>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -524,7 +522,7 @@ limitations under the License.
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>flatten-maven-plugin</artifactId>
-					<version>1.6.0</version>
+					<version>1.7.0</version>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -534,7 +532,7 @@ limitations under the License.
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.10.1</version>
+					<version>3.11.2</version>
 					<configuration>
 						<doclint>accessibility,html,reference</doclint>
 						<show>package</show>
@@ -585,6 +583,12 @@ limitations under the License.
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>exec-maven-plugin</artifactId>
 					<version>3.5.0</version>
+				</plugin>
+				<plugin>
+					<groupId>org.sonatype.central</groupId>
+					<artifactId>central-publishing-maven-plugin</artifactId>
+					<version>0.8.0</version>
+					<extensions>true</extensions>
 				</plugin>
 			</plugins>
 		</pluginManagement>
@@ -699,7 +703,7 @@ limitations under the License.
 		<url>https://github.com/spring-projects/spring-modulith</url>
 		<connection>scm:git:https://github.com/spring-projects/spring-modulith</connection>
 		<developerConnection>scm:git:ssh://git@github.com/spring-projects-experimental/spring-modulith</developerConnection>
-		<tag>1.4.0</tag>
+		<tag>main</tag>
 	</scm>
 
 	<repositories>

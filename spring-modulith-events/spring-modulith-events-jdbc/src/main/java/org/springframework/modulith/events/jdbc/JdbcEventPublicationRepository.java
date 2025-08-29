@@ -34,6 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.modulith.events.EventPublication.Status;
 import org.springframework.modulith.events.core.EventPublicationRepository;
 import org.springframework.modulith.events.core.EventSerializer;
 import org.springframework.modulith.events.core.PublicationTargetIdentifier;
@@ -68,14 +69,14 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 			ORDER BY PUBLICATION_DATE ASC
 			""";
 
-	private static final String SQL_STATEMENT_FIND_UNCOMPLETED = """
+	private static final String SQL_STATEMENT_FIND_INCOMPLETE = """
 			SELECT ID, COMPLETION_DATE, EVENT_TYPE, LISTENER_ID, PUBLICATION_DATE, SERIALIZED_EVENT
 			FROM %s
 			WHERE COMPLETION_DATE IS NULL
 			ORDER BY PUBLICATION_DATE ASC
 			""";
 
-	private static final String SQL_STATEMENT_FIND_UNCOMPLETED_BEFORE = """
+	private static final String SQL_STATEMENT_FIND_INCOMPLETE_PUBLISHED_BEFORE = """
 			SELECT ID, COMPLETION_DATE, EVENT_TYPE, LISTENER_ID, PUBLICATION_DATE, SERIALIZED_EVENT
 			FROM %s
 			WHERE
@@ -174,8 +175,8 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 
 	private final String sqlStatementInsert,
 			sqlStatementFindCompleted,
-			sqlStatementFindUncompleted,
-			sqlStatementFindUncompletedBefore,
+			sqlStatementFindIncomplete,
+			sqlStatementFindIncompleteBefore,
 			sqlStatementUpdateByEventAndListenerId,
 			sqlStatementUpdateById,
 			sqlStatementFindByEventAndListenerId,
@@ -212,8 +213,8 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 
 		this.sqlStatementInsert = SQL_STATEMENT_INSERT.formatted(table);
 		this.sqlStatementFindCompleted = SQL_STATEMENT_FIND_COMPLETED.formatted(completedTable);
-		this.sqlStatementFindUncompleted = SQL_STATEMENT_FIND_UNCOMPLETED.formatted(table);
-		this.sqlStatementFindUncompletedBefore = SQL_STATEMENT_FIND_UNCOMPLETED_BEFORE.formatted(table);
+		this.sqlStatementFindIncomplete = SQL_STATEMENT_FIND_INCOMPLETE.formatted(table);
+		this.sqlStatementFindIncompleteBefore = SQL_STATEMENT_FIND_INCOMPLETE_PUBLISHED_BEFORE.formatted(table);
 		this.sqlStatementUpdateByEventAndListenerId = SQL_STATEMENT_UPDATE_BY_EVENT_AND_LISTENER_ID.formatted(table);
 		this.sqlStatementUpdateById = SQL_STATEMENT_UPDATE_BY_ID.formatted(table);
 		this.sqlStatementFindByEventAndListenerId = SQL_STATEMENT_FIND_BY_EVENT_AND_LISTENER_ID.formatted(table);
@@ -346,7 +347,7 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 	@Transactional(readOnly = true)
 	public List<TargetEventPublication> findIncompletePublications() {
 
-		var result = operations.query(sqlStatementFindUncompleted, this::resultSetToPublications);
+		var result = operations.query(sqlStatementFindIncomplete, this::resultSetToPublications);
 
 		return result == null ? Collections.emptyList() : result;
 	}
@@ -358,7 +359,7 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 	@Override
 	public List<TargetEventPublication> findIncompletePublicationsPublishedBefore(Instant instant) {
 
-		var result = operations.query(sqlStatementFindUncompletedBefore,
+		var result = operations.query(sqlStatementFindIncompleteBefore,
 				this::resultSetToPublications, Timestamp.from(instant));
 
 		return result == null ? Collections.emptyList() : result;
@@ -396,6 +397,29 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 		Assert.notNull(instant, "Instant must not be null!");
 
 		operations.update(sqlStatementDeleteCompletedBefore, Timestamp.from(instant));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.modulith.events.core.EventPublicationRepository#findByStatus(org.springframework.modulith.events.EventPublication.Status)
+	 */
+	@Override
+	public List<TargetEventPublication> findByStatus(Status status) {
+
+		if (Status.COMPLETED == status) {
+			return findCompletedPublications();
+		}
+
+		return Collections.emptyList();
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.modulith.events.core.EventPublicationRepository#countByStatus(org.springframework.modulith.events.EventPublication.Status)
+	 */
+	@Override
+	public int countByStatus(Status status) {
+		return findByStatus(status).size();
 	}
 
 	private String serializeEvent(Object event) {
@@ -585,6 +609,33 @@ class JdbcEventPublicationRepository implements EventPublicationRepository, Bean
 		@Override
 		public void markCompleted(Instant instant) {
 			this.completionDate = instant;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.modulith.events.EventPublication#getStatus()
+		 */
+		@Override
+		public Status getStatus() {
+			return completionDate != null ? Status.COMPLETED : Status.PROCESSING;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.modulith.events.EventPublication#getLastResubmissionDate()
+		 */
+		@Override
+		public @Nullable Instant getLastResubmissionDate() {
+			return null;
+		}
+
+		/*
+		 * (non-Javadoc)
+		 * @see org.springframework.modulith.events.EventPublication#getCompletionAttempts()
+		 */
+		@Override
+		public int getCompletionAttempts() {
+			return 1;
 		}
 
 		/*
